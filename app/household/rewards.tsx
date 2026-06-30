@@ -1,28 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, Pressable, useColorScheme, FlatList, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-interface Transaction {
-  id: string;
-  type: 'Earned' | 'Redeemed';
-  points: string;
-  amount: string;
-  date: string;
-  description: string;
-}
+import { useAuthStore, Transaction } from '@/hooks/use-auth-store';
 
 export default function HouseholdRewards() {
   const isDark = useColorScheme() === 'dark';
-  const [balance, setBalance] = useState(250);
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', type: 'Earned', points: '+84 pts', amount: 'GHS 8.40', date: 'June 28, 2026', description: 'Plastic Collection (8.4 kg)' },
-    { id: '2', type: 'Earned', points: '+120 pts', amount: 'GHS 12.00', date: 'June 20, 2026', description: 'Plastic Collection (12.0 kg)' },
-    { id: '3', type: 'Redeemed', points: '-100 pts', amount: 'GHS 10.00', date: 'June 15, 2026', description: 'MTN Mobile Money Cashout' },
-  ]);
+  const { pointsBalance, transactions, redeemPoints, refreshFromDb } = useAuthStore();
+
+  useEffect(() => {
+    refreshFromDb();
+  }, []);
 
   const handleRedeem = (service: string, pointsCost: number, moneyValue: string) => {
-    if (balance < pointsCost) {
+    if (pointsBalance < pointsCost) {
       Alert.alert('Insufficient Balance', 'You need more EcoPoints to redeem this reward.');
       return;
     }
@@ -35,16 +26,7 @@ export default function HouseholdRewards() {
         { 
           text: 'Confirm', 
           onPress: () => {
-            setBalance(balance - pointsCost);
-            const newTx: Transaction = {
-              id: String(transactions.length + 1),
-              type: 'Redeemed',
-              points: `-${pointsCost} pts`,
-              amount: moneyValue,
-              date: 'Today',
-              description: `${service} Redemption`,
-            };
-            setTransactions([newTx, ...transactions]);
+            redeemPoints(service, pointsCost, moneyValue);
             Alert.alert('Success', `Successfully redeemed! Your account will be credited via Mobile Money shortly.`);
           }
         }
@@ -97,12 +79,12 @@ export default function HouseholdRewards() {
             Current Balance
           </Animated.Text>
           <Animated.Text className="text-white text-4xl font-extrabold">
-            {balance} pts
+            {pointsBalance} pts
           </Animated.Text>
           <View className="flex-row items-center gap-1.5 mt-1">
             <Ionicons name="wallet-outline" size={16} color="rgba(255, 255, 255, 0.8)" />
             <Animated.Text className="text-white text-sm font-semibold">
-              Estimated Value: GHS {(balance * 0.1).toFixed(2)}
+              Estimated Value: GHS {(pointsBalance * 0.1).toFixed(2)}
             </Animated.Text>
           </View>
         </Animated.View>

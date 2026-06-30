@@ -1,80 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Pressable, useColorScheme, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import Svg, { Circle, Path } from 'react-native-svg';
 
-import { useAuthStore } from '@/hooks/use-auth-store';
-
-interface Job {
-  id: string;
-  location: string;
-  distance: string;
-  weight: string;
-  type: string;
-  payout: string;
-  selected: boolean;
-}
+import { useAuthStore, PickupRequest } from '@/hooks/use-auth-store';
 
 export default function CollectorDashboard() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const { pickups, dailyEarnings, jobsDone, profileName, refreshFromDb } = useAuthStore();
+
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    refreshFromDb();
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.replace('/' as any);
   };
 
-  const [jobs, setJobs] = useState<Job[]>([
-    { id: '1', location: 'Nima Lane 4, Accra', distance: '0.4 km away', weight: '5.2 kg', type: 'PET Plastics', payout: 'GHS 7.80', selected: false },
-    { id: '2', location: 'Jamestown Block B', distance: '1.2 km away', weight: '10.5 kg', type: 'HDPE Plastics', payout: 'GHS 15.75', selected: false },
-    { id: '3', location: 'Bantama High St', distance: '2.8 km away', weight: '15.0 kg', type: 'Mixed Recyclables', payout: 'GHS 22.50', selected: false },
-  ]);
+  const pendingPickups = pickups.filter(p => p.status === 'Pending');
 
   const toggleSelectJob = (id: string) => {
-    setJobs(jobs.map(job => 
-      job.id === id ? { ...job, selected: !job.selected } : job
-    ));
+    if (selectedJobIds.includes(id)) {
+      setSelectedJobIds(selectedJobIds.filter(item => item !== id));
+    } else {
+      setSelectedJobIds([...selectedJobIds, id]);
+    }
   };
 
-  const activeJobCount = jobs.filter(j => j.selected).length;
+  const activeJobCount = selectedJobIds.length;
 
-  const renderJob = ({ item }: { item: Job }) => (
-    <View className={`p-4 rounded-2xl flex-row items-center justify-between bg-slate-50 dark:bg-slate-800/50 border ${
-      item.selected ? 'border-sky-500' : 'border-transparent'
-    }`}>
-      <View className="flex-1 mr-4 gap-1">
-        <View className="flex-row justify-between items-center">
-          <Animated.Text className="text-sm font-bold text-slate-900 dark:text-white">
-            {item.type}
+  const renderJob = ({ item }: { item: PickupRequest }) => {
+    const isSelected = selectedJobIds.includes(item.id);
+    const numericWeight = parseFloat(item.weight);
+    const payoutStr = isNaN(numericWeight) ? 'GHS 0.00' : `GHS ${(numericWeight * 1.5).toFixed(2)}`;
+    const distanceStr = `${(parseInt(item.id || '1', 10) * 0.4).toFixed(1)} km away`;
+    return (
+      <View className={`p-4 rounded-2xl flex-row items-center justify-between bg-slate-50 dark:bg-slate-800/50 border ${
+        isSelected ? 'border-sky-500' : 'border-transparent'
+      }`}>
+        <View className="flex-1 mr-4 gap-1">
+          <View className="flex-row justify-between items-center">
+            <Animated.Text className="text-sm font-bold text-slate-900 dark:text-white">
+              {item.type}
+            </Animated.Text>
+            <Animated.Text className="text-sm font-bold text-sky-500 dark:text-sky-400">
+              {payoutStr}
+            </Animated.Text>
+          </View>
+          <Animated.Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            {distanceStr} • {item.weight}
           </Animated.Text>
-          <Animated.Text className="text-sm font-bold text-sky-500 dark:text-sky-400">
-            {item.payout}
+          <Animated.Text className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
+            {item.location}
           </Animated.Text>
         </View>
-        <Animated.Text className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-          {item.distance} • {item.weight}
-        </Animated.Text>
-        <Animated.Text className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-          {item.location}
-        </Animated.Text>
+        <Pressable 
+          onPress={() => toggleSelectJob(item.id)}
+          className={`w-10 h-10 rounded-full items-center justify-center ${
+            isSelected ? 'bg-sky-500' : 'bg-slate-200 dark:bg-slate-700'
+          }`}
+        >
+          <Ionicons 
+            name={isSelected ? 'checkbox' : 'add-circle-outline'} 
+            size={20} 
+            color={isSelected ? '#FFFFFF' : (isDark ? '#94A3B8' : '#64748B')} 
+          />
+        </Pressable>
       </View>
-      <Pressable 
-        onPress={() => toggleSelectJob(item.id)}
-        className={`w-10 h-10 rounded-full items-center justify-center ${
-          item.selected ? 'bg-sky-500' : 'bg-slate-200 dark:bg-slate-700'
-        }`}
-      >
-        <Ionicons 
-          name={item.selected ? 'checkbox' : 'add-circle-outline'} 
-          size={20} 
-          color={item.selected ? '#FFFFFF' : (isDark ? '#94A3B8' : '#64748B')} 
-        />
-      </Pressable>
-    </View>
-  );
+    );
+  };
 
   return (
     <View className="flex-1 bg-white dark:bg-slate-900">
@@ -87,15 +88,23 @@ export default function CollectorDashboard() {
               Collector Mode
             </Animated.Text>
             <Animated.Text className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              Kofi Mensah
+              {profileName || 'Kofi Mensah'}
             </Animated.Text>
           </View>
-          <Pressable 
-            onPress={handleLogout} 
-            className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
-          >
-            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-          </Pressable>
+          <View className="flex-row items-center gap-2">
+            <Pressable 
+              onPress={() => router.push('/profile' as any)} 
+              className="p-3 rounded-2xl bg-sky-500/10 dark:bg-sky-500/20 active:opacity-70"
+            >
+              <Ionicons name="person-circle-outline" size={22} color="#0EA5E9" />
+            </Pressable>
+            <Pressable 
+              onPress={handleLogout} 
+              className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
+            >
+              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+            </Pressable>
+          </View>
         </View>
 
         {/* Mock Map View using Svg to show paths */}
@@ -135,7 +144,7 @@ export default function CollectorDashboard() {
               Daily Pay
             </Animated.Text>
             <Animated.Text className="text-lg font-extrabold text-slate-900 dark:text-white">
-              GHS 42.50
+              GHS {dailyEarnings.toFixed(2)}
             </Animated.Text>
           </View>
           <View className="flex-1 p-3 rounded-2xl items-center gap-1 bg-slate-50 dark:bg-slate-800/50">
@@ -143,7 +152,7 @@ export default function CollectorDashboard() {
               Jobs Done
             </Animated.Text>
             <Animated.Text className="text-lg font-extrabold text-slate-900 dark:text-white">
-              4 pickups
+              {jobsDone} pickups
             </Animated.Text>
           </View>
         </View>
@@ -152,11 +161,11 @@ export default function CollectorDashboard() {
         <View className="flex-1 gap-3">
           <View className="flex-row justify-between items-center">
             <Animated.Text className="text-base font-bold text-slate-900 dark:text-white">
-              Available Pickups ({jobs.length})
+              Available Pickups ({pendingPickups.length})
             </Animated.Text>
             {activeJobCount > 0 && (
               <Pressable 
-                onPress={() => router.push('/collector/scanner' as any)}
+                onPress={() => router.push(`/collector/scanner?jobId=${selectedJobIds[0]}` as any)}
                 className="bg-sky-500 py-1.5 px-3 rounded-xl active:opacity-90"
               >
                 <Animated.Text className="text-white text-xs font-bold">
@@ -167,11 +176,19 @@ export default function CollectorDashboard() {
           </View>
 
           <FlatList
-            data={jobs}
+            data={pendingPickups}
             keyExtractor={(item) => item.id}
             renderItem={renderJob}
             contentContainerStyle={{ gap: 12, paddingBottom: 24 }}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View className="items-center py-10 gap-3">
+                <Ionicons name="checkmark-circle-outline" size={48} color={isDark ? '#334155' : '#CBD5E1'} />
+                <Animated.Text className="text-slate-400 dark:text-slate-500 text-center px-6 text-xs">
+                  No pending pickups in your area. Switch to Household and request a pickup!
+                </Animated.Text>
+              </View>
+            }
           />
         </View>
 

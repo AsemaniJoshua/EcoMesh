@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Pressable, useColorScheme, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,11 @@ export default function HouseholdDashboard() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const { pointsBalance, totalRecycledKg, profileName, refreshFromDb } = useAuthStore();
+
+  useEffect(() => {
+    refreshFromDb();
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -58,15 +63,23 @@ export default function HouseholdDashboard() {
               Welcome back,
             </Animated.Text>
             <Animated.Text className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              Akosua Mensah
+              {profileName || 'Akosua Mensah'}
             </Animated.Text>
           </View>
-          <Pressable 
-            onPress={handleLogout} 
-            className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
-          >
-            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-          </Pressable>
+          <View className="flex-row items-center gap-2">
+            <Pressable 
+              onPress={() => router.push('/profile' as any)} 
+              className="p-3 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/20 active:opacity-70"
+            >
+              <Ionicons name="person-circle-outline" size={22} color="#10B981" />
+            </Pressable>
+            <Pressable 
+              onPress={handleLogout} 
+              className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
+            >
+              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+            </Pressable>
+          </View>
         </Animated.View>
 
         {/* Metrics Grid */}
@@ -76,14 +89,14 @@ export default function HouseholdDashboard() {
         >
           <MetricCard 
             title="EcoPoints Balance" 
-            value="250 pts" 
+            value={`${pointsBalance} pts`} 
             icon="gift" 
             colorClass="bg-emerald-500/10 dark:bg-emerald-500/20"
             iconColor="#10B981" 
           />
           <MetricCard 
             title="Total Recycled" 
-            value="34.8 kg" 
+            value={`${totalRecycledKg.toFixed(1)} kg`} 
             icon="leaf" 
             colorClass="bg-blue-500/10 dark:bg-blue-500/20"
             iconColor="#3B82F6" 

@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
 import { View, Pressable, useColorScheme, TextInput, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useAuthStore } from '@/hooks/use-auth-store';
 
 export default function CollectorScanner() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
+  const { jobId } = useLocalSearchParams<{ jobId: string }>();
+  const { pickups, completePickupRequest } = useAuthStore();
+
+  const targetPickup = pickups.find(p => p.id === jobId) || pickups.find(p => p.status === 'Pending') || {
+    id: 'mock',
+    type: 'PET Plastics',
+    weight: '5.0 kg',
+    location: 'Nima Lane 4, Accra',
+    date: 'Today',
+    status: 'Pending'
+  };
 
   const [step, setStep] = useState<1 | 2>(1); // Step 1: Scan QR, Step 2: Weight Verification
-  const [weight, setWeight] = useState('');
+  const [weight, setWeight] = useState(targetPickup.weight.replace(' kg', ''));
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSimulateScan = () => {
@@ -29,6 +41,8 @@ export default function CollectorScanner() {
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
+      completePickupRequest(targetPickup.id, weight);
+
       Alert.alert(
         'Transaction Successful',
         `Disbursing payouts:\n\n• GHS ${(parseFloat(weight) * 1.5).toFixed(2)} to Kofi Mensah (MoMo)\n• ${(parseFloat(weight) * 10).toFixed(0)} EcoPoints to Household (Akosua Mensah)`,
@@ -110,7 +124,7 @@ export default function CollectorScanner() {
                     Akosua Mensah
                   </Animated.Text>
                   <Animated.Text className="text-xs text-slate-500 dark:text-slate-400">
-                    Nima Lane 4, Accra
+                    {targetPickup.location}
                   </Animated.Text>
                 </View>
               </View>
@@ -122,7 +136,7 @@ export default function CollectorScanner() {
                   Requested Type
                 </Animated.Text>
                 <Animated.Text className="text-xs font-bold text-slate-900 dark:text-white">
-                  PET Plastics
+                  {targetPickup.type}
                 </Animated.Text>
               </View>
             </View>

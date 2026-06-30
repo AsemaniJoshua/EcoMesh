@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Pressable, useColorScheme, ScrollView, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,16 +19,30 @@ export default function CorporateDashboard() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const { profileName, totalRecycledKg, pickups, refreshFromDb } = useAuthStore();
+
+  useEffect(() => {
+    refreshFromDb();
+  }, []);
 
   const handleLogout = () => {
     logout();
     router.replace('/' as any);
   };
 
-  const logs: LogItem[] = [
-    { id: '1', material: 'Bulk PET Clean Flakes', weight: '4.2 metric tonnes', date: 'June 29, 2026', verificationKey: 'EPR-GH-7892-A2', status: 'Verified' },
-    { id: '2', material: 'HDPE Raw Pellets', weight: '2.5 metric tonnes', date: 'June 25, 2026', verificationKey: 'EPR-GH-4829-C9', status: 'Verified' },
-    { id: '3', material: 'Mixed Flakes Raw', weight: '1.8 metric tonnes', date: 'June 18, 2026', verificationKey: 'EPR-GH-1029-B1', status: 'Auditing' },
+  const completedPickups = pickups.filter(p => p.status === 'Completed');
+
+  const logs: LogItem[] = completedPickups.length > 0 ? completedPickups.map((p) => ({
+    id: p.id,
+    material: p.type,
+    weight: p.weight,
+    date: p.date,
+    verificationKey: `EPR-GH-00${p.id}`,
+    status: 'Verified'
+  })) : [
+    { id: '1', material: 'Bulk PET Clean Flakes', weight: '42.5 kg', date: 'June 29, 2026', verificationKey: 'EPR-GH-7892-A2', status: 'Verified' },
+    { id: '2', material: 'HDPE Raw Pellets', weight: '25.0 kg', date: 'June 25, 2026', verificationKey: 'EPR-GH-4829-C9', status: 'Verified' },
+    { id: '3', material: 'Mixed Flakes Raw', weight: '18.0 kg', date: 'June 18, 2026', verificationKey: 'EPR-GH-1029-B1', status: 'Auditing' },
   ];
 
   const MetricCard = ({ 
@@ -108,15 +122,23 @@ export default function CorporateDashboard() {
               Enterprise Client
             </Animated.Text>
             <Animated.Text className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              Coca-Cola Ghana Ltd
+              {profileName || 'Coca-Cola Ghana Ltd'}
             </Animated.Text>
           </View>
-          <Pressable 
-            onPress={handleLogout} 
-            className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
-          >
-            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-          </Pressable>
+          <View className="flex-row items-center gap-2">
+            <Pressable 
+              onPress={() => router.push('/profile' as any)} 
+              className="p-3 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 active:opacity-70"
+            >
+              <Ionicons name="person-circle-outline" size={22} color="#6366F1" />
+            </Pressable>
+            <Pressable 
+              onPress={handleLogout} 
+              className="p-3 rounded-2xl bg-red-500/10 dark:bg-red-500/20 active:opacity-70"
+            >
+              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+            </Pressable>
+          </View>
         </Animated.View>
 
         {/* Target Progress Bar */}
@@ -129,17 +151,17 @@ export default function CorporateDashboard() {
               Annual EPR Recycling Target
             </Animated.Text>
             <Animated.Text className="text-sm font-extrabold text-indigo-500">
-              62% Met
+              {Math.min(Math.round((totalRecycledKg / 100) * 100), 100)}% Met
             </Animated.Text>
           </View>
           
           {/* Progress Bar Track */}
           <View className="h-2.5 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700/80">
-            <View style={{ width: '62%' }} className="h-full rounded-full bg-indigo-500" />
+            <View style={{ width: `${Math.min(Math.round((totalRecycledKg / 100) * 100), 100)}%` }} className="h-full rounded-full bg-indigo-500" />
           </View>
           
           <Animated.Text className="text-xs text-slate-500 dark:text-slate-400">
-            12.4 of 20.0 metric tonnes recovered this year.
+            {totalRecycledKg.toFixed(1)} of 100.0 kg recovered this year.
           </Animated.Text>
         </Animated.View>
 
@@ -150,15 +172,15 @@ export default function CorporateDashboard() {
         >
           <MetricCard 
             title="Carbon Offset" 
-            value="18.6 tCO2e" 
-            subtitle="Equiv. 476 trees planted" 
+            value={`${(totalRecycledKg * 1.5).toFixed(1)} kg CO2e`} 
+            subtitle={`Equiv. ${(totalRecycledKg / 25).toFixed(1)} trees planted`} 
             icon="leaf" 
             colorClass="bg-emerald-500/10 dark:bg-emerald-500/20"
             iconColor="#10B981" 
           />
           <MetricCard 
             title="Platform Audits" 
-            value="1,480 logs" 
+            value={`${logs.length} logs`} 
             subtitle="100% DVaaS verified" 
             icon="shield-checkmark" 
             colorClass="bg-indigo-500/10 dark:bg-indigo-500/20"

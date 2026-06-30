@@ -1,39 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Pressable, useColorScheme, FlatList, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-
-interface PickupItem {
-  id: string;
-  date: string;
-  weight: string;
-  type: string;
-  status: 'Pending' | 'Completed' | 'Cancelled';
-  location: string;
-}
+import { useAuthStore, PickupRequest } from '@/hooks/use-auth-store';
 
 export default function HouseholdPickups() {
   const isDark = useColorScheme() === 'dark';
-  const [pickups, setPickups] = useState<PickupItem[]>([
-    { id: '1', date: 'June 28, 2026', weight: '8.4 kg', type: 'PET Plastics', status: 'Completed', location: 'Nima, Accra' },
-    { id: '2', date: 'June 20, 2026', weight: '12.0 kg', type: 'HDPE & PET Mixed', status: 'Completed', location: 'Nima, Accra' },
-  ]);
+  const { pickups, addPickupRequest, refreshFromDb } = useAuthStore();
 
   const [weight, setWeight] = useState('');
   const [type, setType] = useState('PET Plastics');
   const [isAdding, setIsAdding] = useState(false);
 
+  useEffect(() => {
+    refreshFromDb();
+  }, []);
+
   const handleAddPickup = () => {
     if (!weight) return;
-    const newItem: PickupItem = {
-      id: String(pickups.length + 1),
-      date: 'Today',
-      weight: `${weight} kg`,
-      type: type,
-      status: 'Pending',
-      location: 'Nima, Accra (Current Location)',
-    };
-    setPickups([newItem, ...pickups]);
+    addPickupRequest(weight, type);
     setWeight('');
     setIsAdding(false);
   };
@@ -46,7 +31,7 @@ export default function HouseholdPickups() {
     }
   };
 
-  const renderItem = ({ item }: { item: PickupItem }) => (
+  const renderItem = ({ item }: { item: PickupRequest }) => (
     <View className="p-4 rounded-2xl gap-3 bg-slate-50 dark:bg-slate-800/50">
       <View className="flex-row justify-between items-center">
         <View className="flex-row items-center gap-1.5">
